@@ -10,7 +10,10 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
-      "runtimeArgs": []
+      "runtimeArgs": [],
+      "env": {
+        "DEBUG": "*"
+      }
     }
   ]
 }
