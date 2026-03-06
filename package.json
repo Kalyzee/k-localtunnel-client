@@ -18,7 +18,14 @@
     "lt": "bin/lt.js"
   },
   "scripts": {
-    "test": "mocha --reporter list --timeout 60000 -- *.spec.js"
+    "test": "mocha --reporter list --timeout 60000 -- *.spec.js",
+    "docker-image-build": "node scripts/docker-image-build.cjs",
+    "docker-image-push": "node scripts/docker-image-push.cjs",
+    "docker-image-build-push": "node scripts/docker-image-build-and-push.cjs",
+    "docker-image-run": "node scripts/docker-image-run.cjs",
+    "db": "yarn docker-image-build",
+    "dp": "yarn docker-image-push",
+    "dbp": "yarn docker-image-build-push"
   },
   "dependencies": {
     "axios": "0.21.4",
@@ -27,7 +34,10 @@
     "yargs": "17.1.1"
   },
   "devDependencies": {
-    "mocha": "~9.1.1"
+    "mocha": "~9.1.1",
+    "shelljs": "0.10.0",
+    "compare-versions": "6.1.1",
+    "dotenv": "17.3.1"
   },
   "engines": {
     "node": ">=8.3.0"

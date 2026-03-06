@@ -1,0 +1,12 @@
+services:
+  localtunnel-test:
+    image: ghcr.io/kalyzee/k-localtunnel-client:v3.0.0
+    container_name: lt-test-host
+    network_mode: "host"
+    environment:
+      TUNNELS_CONFIG: '[{"port": 3000, "id": "dr-ovenmedia-dashboard"}, {"port": 8088, "id": "dr-ovenmedia-api"}, {"port": 8080, "id": "dr-kastapp-api"}]'
+      TUNNEL_AUTH_KEY: ab48ad08ef0c89ad0c05b898da506c0489ad0e80b
+      TUNNEL_HOST: https://tunnel.dev.kast.app
+      TUNNEL_SOCKET_TCP_HOST: socket-tunnel.dev.kast.app
+      TUNNEL_SOCKET_TCP_TLS: true
+      TUNNEL_SOCKET_TCP_PORT: 443
