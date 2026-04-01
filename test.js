@@ -1,60 +1,49 @@
 const localtunnel = require('./localtunnel');
 
-const run = (async () => {
-  let tunnel;
-  try {
-    tunnel = await localtunnel({
-      port: 3000,                     // le port de ton serveur local
-      host: 'https://tunnel.dev.kast.app',   // ton serveur localtunnel custom
-      authKey: 'abcd1234',
-      clientId: 'device-1',
-      staticTcpTunnel: {
-        tls: true,
-        host: 'socket-tunnel.dev.kast.app',
-        port: 443
-      }
-    });
-    /*tunnel = await localtunnel({
-      port: 3000,                     // le port de ton serveur local
-      host: 'http://localhost:3001',   // ton serveur localtunnel custom
-      authKey: 'abcd1234',
-      clientId: 'device-2'
-    });*/
-  } catch(err) {
-    console.error("Error connection : ", err)
-  }
-
-  if (!tunnel) {
-    setTimeout(() => {
-      // retry
-      run();
-    }, 1000);
-    return;
-  }
-  // the assigned public url for your tunnel
-  // i.e. https://abcdefgjhij.localtunnel.me
-  console.log("tunnel : ", tunnel)
-
-  tunnel.on("connection", (...args) => {
-    console.log("args : ", ...args);
-
-  });
-
-  tunnel.on("error", (err) => {
-    console.error("Error : ", err);
-    try {
-      tunnel.close();
-    } catch(_) {};
-    setTimeout(() => {
-      // retry
-      run();
-    }, 1000);
-  })
-
-  tunnel.on('close', () => {
-    // tunnels are closed
-    console.log("close");
-  });
+const manager = localtunnel({
+  host: 'http://localhost:3001',
+  authKey: 'abcd1234',
+  tunnels: [
+    { port: 3000, id: 'device-1' },
+    { port: 3000, id: 'device-2' },
+  ],
+  /*
+  // Exemple avec un serveur distant et TCP statique :
+  host: 'https://tunnel.dev.kast.app',
+  staticTcpTunnel: {
+    tls: true,
+    host: 'socket-tunnel.dev.kast.app',
+    port: 443,
+  },
+  */
 });
 
-run();
+manager.on('open', (id, tunnel) => {
+  console.log(`Tunnel ${id} opened: ${tunnel.url}`);
+});
+
+manager.on('unauthorized', (id) => {
+  console.log(`Tunnel ${id} closed by authorization revocation`);
+});
+
+manager.on('close', (id) => {
+  if (typeof id === 'string') {
+    console.log(`Tunnel ${id} closed`);
+  }
+});
+
+manager.on('error', (err, id) => {
+  if (id) {
+    console.error(`Error on tunnel ${id}:`, err.message);
+  } else {
+    console.error('Manager error:', err.message);
+  }
+});
+
+manager.on('sse:connected', () => {
+  console.log('SSE connected, waiting for authorization events...');
+});
+
+manager.on('sse:disconnected', () => {
+  console.log('SSE disconnected');
+});

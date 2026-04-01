@@ -1,14 +1,16 @@
-const Tunnel = require('./lib/Tunnel');
+const TunnelManager = require('./lib/TunnelManager');
 
-module.exports = function localtunnel(arg1, arg2, arg3) {
-  const options = typeof arg1 === 'object' ? arg1 : { ...arg2, port: arg1 };
-  const callback = typeof arg1 === 'object' ? arg2 : arg3;
-  const client = new Tunnel(options);
-  if (callback) {
-    client.open(err => (err ? callback(err) : callback(null, client)));
-    return client;
-  }
-  return new Promise((resolve, reject) =>
-    client.open(err => (err ? reject(err) : resolve(client)))
-  );
+/**
+ * Create a TunnelManager that connects via SSE and manages
+ * tunnel lifecycles based on server authorization.
+ *
+ * @param {object} opts
+ * @param {string} opts.host - Tunnel server URL
+ * @param {string} [opts.authKey] - Auth key
+ * @param {Array<{port: number, id: string}>} opts.tunnels - Tunnel configs
+ * @param {object} [opts.staticTcpTunnel] - Static TCP tunnel config
+ * @returns {TunnelManager}
+ */
+module.exports = function localtunnel(opts) {
+  return new TunnelManager(opts);
 };
