@@ -1,6 +1,6 @@
 services:
   localtunnel-test:
-    image: ghcr.io/kalyzee/k-localtunnel-client:v4.0.0
+    image: ghcr.io/kalyzee/k-localtunnel-client:v4.0.1
     container_name: lt-test-host
     network_mode: "host"
     env_file: .env
