@@ -1,4 +1,5 @@
 const localtunnel = require('./localtunnel');
+const debug = require('debug')('localtunnel:main');
 
 const rawConfig = process.env.TUNNELS_CONFIG;
 const host = process.env.TUNNEL_HOST;
@@ -11,12 +12,13 @@ let tunnels = [];
 
 try {
   const json = JSON.parse(rawConfig || '[]');
-  console.log("json: ", json);
+  debug("json: ", json);
   if (!Array.isArray(json)) throw new Error("TUNNEL_CONFIG must be an array");
   if (!json.length) throw new Error("TUNNEL_CONFIG can't be empty");
   for (let item of json) {
     if (typeof item.port !== "number") throw new Error("item.port of TUNNEL_CONFIG must be a valid number");
     if (typeof item.id !== "string" || !item.id?.trim()) throw new Error("item.id of TUNNEL_CONFIG must be a valid string");
+    if (item.type && item.type !== 'http' && item.type !== 'tcp') throw new Error("item.type of TUNNEL_CONFIG must be 'http' or 'tcp'");
     tunnels.push(item);
   }
   if (!host?.trim()) throw new Error("TUNNEL_HOST can't undefined")
@@ -37,31 +39,35 @@ const manager = localtunnel({
 });
 
 manager.on('open', (id, tunnel) => {
-  console.log(`Tunnel ${id} opened: ${tunnel.url}`);
+  if (tunnel.type === 'tcp') {
+    debug(`Tunnel ${id} opened (TCP, public port: ${tunnel.publicPort})`);
+  } else {
+    debug(`Tunnel ${id} opened: ${tunnel.url}`);
+  }
 });
 
 manager.on('unauthorized', (id) => {
-  console.log(`Tunnel ${id} closed by authorization revocation`);
+  debug(`Tunnel ${id} closed by authorization revocation`);
 });
 
 manager.on('close', (id) => {
   if (typeof id === 'string') {
-    console.log(`Tunnel ${id} closed`);
+    debug(`Tunnel ${id} closed`);
   }
 });
 
 manager.on('error', (err, id) => {
   if (id) {
-    console.error(`Error on tunnel ${id}:`, err.message);
+    debug(`Error on tunnel ${id}:`, err.message);
   } else {
-    console.error('Manager error:', err.message);
+    debug('Manager error:', err.message);
   }
 });
 
 manager.on('sse:connected', () => {
-  console.log('SSE connected, waiting for authorization events...');
+  debug('SSE connected, waiting for authorization events...');
 });
 
 manager.on('sse:disconnected', () => {
-  console.log('SSE disconnected');
+  debug('SSE disconnected');
 });
