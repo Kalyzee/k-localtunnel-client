@@ -1,8 +1,11 @@
 # k-localtunnel-client
 
-Client de tunnel permettant d'exposer des services locaux sur internet via un serveur [k-localtunnel-server](https://github.com/Kalyzee/k-localtunnel-server). Le client se connecte au serveur en SSE, attend l'autorisation pour chaque tunnel, puis ouvre automatiquement les connexions TCP.
+Client de tunnel permettant d'exposer des services locaux sur internet via un serveur [k-localtunnel-server](https://github.com/Kalyzee/k-localtunnel-server). Le client se connecte au serveur en SSE, attend l'autorisation pour chaque tunnel, puis ouvre automatiquement les connexions.
 
-Chaque tunnel est accessible depuis l'exterieur sur `<id>.tunnel.exemple.com`.
+Supporte trois modes de tunneling :
+- **HTTP** : accessible via sous-domaine `<id>.tunnel.exemple.com`
+- **TCP** : accessible via un port TCP public assigne sur le serveur
+- **UDP** : accessible via un port UDP public assigne sur le serveur
 
 ## Prerequis
 
@@ -27,13 +30,18 @@ const manager = localtunnel({
   host: 'https://tunnel.exemple.com',
   authKey: 'ma-cle-client',
   tunnels: [
-    { port: 3000, id: 'device-1' },
-    { port: 8080, id: 'device-2' },
+    { port: 3000, id: 'device-1' },                              // HTTP (defaut)
+    { port: 5432, id: 'device-2', type: 'tcp', tcpPort: 25000 }, // TCP sur port 25000
+    { port: 5353, id: 'device-3', type: 'udp' },                 // UDP, port assigne par le serveur
   ],
 });
 
 manager.on('open', (id, tunnel) => {
-  console.log(`Tunnel ${id} ouvert: ${tunnel.url}`);
+  if (tunnel.type === 'tcp' || tunnel.type === 'udp') {
+    console.log(`Tunnel ${id} ouvert (${tunnel.type.toUpperCase()}, port: ${tunnel.publicPort})`);
+  } else {
+    console.log(`Tunnel ${id} ouvert: ${tunnel.url}`);
+  }
 });
 
 manager.on('unauthorized', (id) => {
@@ -54,8 +62,19 @@ manager.on('error', (err, id) => {
 |--------|------|--------|-------------|
 | `host` | `string` | oui | URL du serveur k-localtunnel-server |
 | `authKey` | `string` | non | Cle d'authentification client (doit correspondre a `AUTH_KEY` cote serveur) |
-| `tunnels` | `Array<{port, id}>` | oui | Liste des tunnels a gerer. `port` : port local a exposer, `id` : identifiant du tunnel |
+| `tunnels` | `Array<object>` | oui | Liste des tunnels a gerer (voir ci-dessous) |
 | `staticTcpTunnel` | `object` | non | Configuration TCP statique (voir ci-dessous) |
+
+#### Configuration d'un tunnel
+
+| Champ | Type | Requis | Description |
+|-------|------|--------|-------------|
+| `port` | `number` | oui | Port local a exposer |
+| `id` | `string` | oui | Identifiant du tunnel |
+| `local_host` | `string` | non | Hostname local (defaut: `localhost`) |
+| `type` | `string` | non | Type de tunnel : `http` (defaut), `tcp`, ou `udp` |
+| `tcpPort` | `number` | non | Port TCP public souhaite (mode `tcp` uniquement, sinon assigne par l'OS) |
+| `udpPort` | `number` | non | Port UDP public souhaite (mode `udp` uniquement, sinon assigne par l'OS) |
 
 #### Option `staticTcpTunnel`
 
@@ -94,7 +113,7 @@ La fonction `localtunnel()` retourne un `TunnelManager` (EventEmitter) qui gere 
 
 | Event | Arguments | Description |
 |-------|-----------|-------------|
-| `open` | `(id, tunnel)` | Tunnel autorise et connexion etablie. `tunnel.url` contient l'URL publique |
+| `open` | `(id, tunnel)` | Tunnel autorise et connexion etablie. `tunnel.url` (HTTP) ou `tunnel.publicPort` (TCP/UDP) |
 | `close` | `(id)` | Tunnel ferme |
 | `unauthorized` | `(id)` | Tunnel ferme suite a une revocation d'autorisation par le serveur |
 | `error` | `(err, id?)` | Erreur sur un tunnel specifique ou sur la connexion SSE |
@@ -117,7 +136,7 @@ La fonction `localtunnel()` retourne un `TunnelManager` (EventEmitter) qui gere 
 |----------|--------|-------------|
 | `TUNNEL_HOST` | oui | URL du serveur k-localtunnel-server |
 | `TUNNEL_AUTH_KEY` | non | Cle d'authentification client |
-| `TUNNELS_CONFIG` | oui | JSON array des tunnels : `[{"port": 3000, "id": "mon-id"}]` |
+| `TUNNELS_CONFIG` | oui | JSON array des tunnels : `[{"port": 3000, "id": "mon-id"}]`. Champs optionnels : `type`, `tcpPort`, `udpPort` |
 | `TUNNEL_SOCKET_TCP_HOST` | non | Hostname du serveur TCP statique |
 | `TUNNEL_SOCKET_TCP_PORT` | non | Port du serveur TCP statique |
 | `TUNNEL_SOCKET_TCP_TLS` | non | `"true"` pour activer TLS sur la connexion TCP |
@@ -139,7 +158,7 @@ docker run -d \
   --net host \
   -e TUNNEL_HOST=https://tunnel.exemple.com \
   -e TUNNEL_AUTH_KEY=ma-cle-client \
-  -e TUNNELS_CONFIG='[{"port":3000,"id":"device-1"},{"port":8080,"id":"device-2"}]' \
+  -e TUNNELS_CONFIG='[{"port":3000,"id":"device-1"},{"port":5432,"id":"device-2","type":"tcp","tcpPort":25000}]' \
   k-localtunnel-client
 ```
 
@@ -155,7 +174,7 @@ services:
     environment:
       TUNNEL_HOST: https://tunnel.exemple.com
       TUNNEL_AUTH_KEY: ma-cle-client
-      TUNNELS_CONFIG: '[{"port": 3000, "id": "device-1"}, {"port": 8080, "id": "device-2"}]'
+      TUNNELS_CONFIG: '[{"port": 3000, "id": "device-1"}, {"port": 5432, "id": "device-2", "type": "tcp"}]'
       # Optionnel : TCP statique
       # TUNNEL_SOCKET_TCP_HOST: socket-tunnel.exemple.com
       # TUNNEL_SOCKET_TCP_TLS: "true"
@@ -178,7 +197,9 @@ services:
    a. Demande l'ouverture du tunnel : GET /?new (x-lt-client-id: device-1)
    b. Recoit les infos de connexion TCP (port, token)
    c. Ouvre les sockets TCP et etablit le tunnel
-   → device-1 est accessible sur https://device-1.tunnel.exemple.com
+   → HTTP : accessible sur https://device-1.tunnel.exemple.com
+   → TCP : accessible sur tcp://tunnel.exemple.com:<port>
+   → UDP : accessible sur udp://tunnel.exemple.com:<port>
 
 4. Si le serveur revoque l'autorisation :
    → Event SSE : {"id":"device-1","authorized":false}
@@ -196,8 +217,9 @@ localtunnel.js          Point d'entree, retourne un TunnelManager
 lib/
   TunnelManager.js      Gestion SSE + cycle de vie multi-tunnels
   Tunnel.js             Gestion d'un tunnel individuel (init HTTP + establish)
-  TunnelCluster.js      Gestion des connexions TCP (sockets, credentials, piping)
-  HeaderHostTransformer.js  Transformation du header Host pour le proxy local
+  TunnelCluster.js      Gestion des connexions (HTTP piping, TCP deferred, UDP framing)
+  HeaderHostTransformer.js  Transformation du header Host pour le proxy HTTP local
+  UdpFrameCodec.js      Codec de framing UDP (encode/decode des datagrams sur TCP)
 index.js                Point d'entree Docker (lecture env vars)
 bin/lt.js               CLI
 ```
