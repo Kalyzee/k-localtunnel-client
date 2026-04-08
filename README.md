@@ -75,6 +75,7 @@ manager.on('error', (err, id) => {
 | `type` | `string` | non | Type de tunnel : `http` (defaut), `tcp`, ou `udp` |
 | `tcpPort` | `number` | non | Port TCP public souhaite (mode `tcp` uniquement, sinon assigne par l'OS) |
 | `udpPort` | `number` | non | Port UDP public souhaite (mode `udp` uniquement, sinon assigne par l'OS) |
+| `maxConn` | `number` | non | Nombre max de sockets souhaite. La valeur effective est le min entre cette valeur et la limite serveur |
 
 #### Option `staticTcpTunnel`
 

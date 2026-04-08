@@ -30,9 +30,9 @@ const manager = localtunnel({
   host: 'http://localhost:3001',
   authKey: 'abcd1234',
   tunnels: [
-    { port: 3000, id: 'device-1' },
-    { port: 9000, id: 'device-2', type: "tcp", tcpPort: "20123" },
-    { port: 41234, id: 'device-3', type: "udp", udpPort: "40123" },
+    { port: 3000, id: 'device-1', maxConn: 20 },
+    { port: 9000, id: 'device-2', type: "tcp", tcpPort: "20123", maxConn: 20 },
+    { port: 41234, id: 'test-3', type: "udp", udpPort: "40123", maxConn: 20 },
   ],
   
   // Exemple avec un serveur distant et TCP statique :

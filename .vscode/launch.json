@@ -11,10 +11,7 @@
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "runtimeArgs": [],
-      "envFile": "${workspaceFolder}/.env",
-      "env": {
-        "DEBUG": "*"
-      }
+      "envFile": "${workspaceFolder}/.env"
     }
   ]
 }
