@@ -18,7 +18,7 @@ try {
   for (let item of json) {
     if (typeof item.port !== "number") throw new Error("item.port of TUNNEL_CONFIG must be a valid number");
     if (typeof item.id !== "string" || !item.id?.trim()) throw new Error("item.id of TUNNEL_CONFIG must be a valid string");
-    if (item.type && item.type !== 'http' && item.type !== 'tcp') throw new Error("item.type of TUNNEL_CONFIG must be 'http' or 'tcp'");
+    if (item.type && item.type !== 'http' && item.type !== 'tcp' && item.type !== 'udp') throw new Error("item.type of TUNNEL_CONFIG must be 'http', 'tcp', or 'udp'");
     tunnels.push(item);
   }
   if (!host?.trim()) throw new Error("TUNNEL_HOST can't undefined")
@@ -39,8 +39,8 @@ const manager = localtunnel({
 });
 
 manager.on('open', (id, tunnel) => {
-  if (tunnel.type === 'tcp') {
-    debug(`Tunnel ${id} opened (TCP, public port: ${tunnel.publicPort})`);
+  if (tunnel.type === 'tcp' || tunnel.type === 'udp') {
+    debug(`Tunnel ${id} opened (${tunnel.type.toUpperCase()}, public port: ${tunnel.publicPort})`);
   } else {
     debug(`Tunnel ${id} opened: ${tunnel.url}`);
   }
