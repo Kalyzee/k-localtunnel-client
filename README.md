@@ -28,7 +28,7 @@ const localtunnel = require('./localtunnel');
 
 const manager = localtunnel({
   host: 'https://tunnel.exemple.com',
-  authKey: 'ma-cle-client',
+  authKey: 'key_<objectId>_<data>',
   tunnels: [
     { port: 3000, id: 'device-1' },                              // HTTP (defaut)
     { port: 5432, id: 'device-2', type: 'tcp', tcpPort: 25000 }, // TCP sur port 25000
@@ -61,7 +61,7 @@ manager.on('error', (err, id) => {
 | Option | Type | Requis | Description |
 |--------|------|--------|-------------|
 | `host` | `string` | oui | URL du serveur k-localtunnel-server |
-| `authKey` | `string` | non | Cle d'authentification client (doit correspondre a `AUTH_KEY` cote serveur) |
+| `authKey` | `string` | non | API key au format `key_<objectId>_<data>`, creee cote serveur (onglet API Keys de l'admin). Obligatoire si le serveur est demarre avec `--auth-required`. Envoyee dans le header `x-lt-auth`. |
 | `tunnels` | `Array<object>` | oui | Liste des tunnels a gerer (voir ci-dessous) |
 | `staticTcpTunnel` | `object` | non | Configuration TCP statique (voir ci-dessous) |
 
@@ -90,7 +90,7 @@ Quand le serveur utilise un port TCP unique partage (derriere un reverse proxy p
 ```js
 const manager = localtunnel({
   host: 'https://tunnel.exemple.com',
-  authKey: 'ma-cle',
+  authKey: 'key_<objectId>_<data>',
   tunnels: [{ port: 3000, id: 'device-1' }],
   staticTcpTunnel: {
     tls: true,
@@ -109,6 +109,14 @@ La fonction `localtunnel()` retourne un `TunnelManager` (EventEmitter) qui gere 
 3. Ouverture/fermeture automatique des tunnels
 4. Retry automatique en cas d'erreur (3s)
 5. Reconnexion SSE automatique en cas de deconnexion (3s)
+
+#### Resilience reseau
+
+Le client detecte plusieurs classes d'echec silencieux et recupere automatiquement :
+
+- **SSE zombie** (NAT/firewall qui drop une connexion idle sans envoyer de FIN/RST) : la socket SSE a un idle timeout de 45s cote client, combine a un heartbeat serveur de 15s. Au-dela de 45s sans donnee recue, la socket est detruite et la reconnexion demarre. Un `setKeepAlive(true, 30000)` est aussi active en defense en profondeur.
+- **Serveur qui a oublie le client** (grace timeout ou agent error sans notification SSE) : si aucune socket tunnel ne survit au moins 3s pendant une fenetre de 15s, le `Tunnel` remonte une erreur. Le `TunnelManager` le ferme et relance un `GET /?new` complet pour re-enregistrer le client sous son ID.
+- **Nagle sur le handshake** : `setNoDelay(true)` est applique sur chaque socket tunnel pour que le handshake JSON parte immediatement sans etre retarde par le buffering TCP (sinon, sous rafale, il peut depasser la fenetre de handshake cote serveur).
 
 #### Events
 
@@ -136,7 +144,7 @@ La fonction `localtunnel()` retourne un `TunnelManager` (EventEmitter) qui gere 
 | Variable | Requis | Description |
 |----------|--------|-------------|
 | `TUNNEL_HOST` | oui | URL du serveur k-localtunnel-server |
-| `TUNNEL_AUTH_KEY` | non | Cle d'authentification client |
+| `TUNNEL_AUTH_KEY` | non | API key au format `key_<objectId>_<data>` (voir onglet API Keys de l'admin serveur). Obligatoire si le serveur a `--auth-required`. |
 | `TUNNELS_CONFIG` | oui | JSON array des tunnels : `[{"port": 3000, "id": "mon-id"}]`. Champs optionnels : `type`, `tcpPort`, `udpPort` |
 | `TUNNEL_SOCKET_TCP_HOST` | non | Hostname du serveur TCP statique |
 | `TUNNEL_SOCKET_TCP_PORT` | non | Port du serveur TCP statique |
@@ -158,7 +166,7 @@ docker run -d \
   --name localtunnel-client \
   --net host \
   -e TUNNEL_HOST=https://tunnel.exemple.com \
-  -e TUNNEL_AUTH_KEY=ma-cle-client \
+  -e TUNNEL_AUTH_KEY=key_<objectId>_<data> \
   -e TUNNELS_CONFIG='[{"port":3000,"id":"device-1"},{"port":5432,"id":"device-2","type":"tcp","tcpPort":25000}]' \
   k-localtunnel-client
 ```
@@ -174,7 +182,7 @@ services:
     restart: always
     environment:
       TUNNEL_HOST: https://tunnel.exemple.com
-      TUNNEL_AUTH_KEY: ma-cle-client
+      TUNNEL_AUTH_KEY: key_<objectId>_<data>
       TUNNELS_CONFIG: '[{"port": 3000, "id": "device-1"}, {"port": 5432, "id": "device-2", "type": "tcp"}]'
       # Optionnel : TCP statique
       # TUNNEL_SOCKET_TCP_HOST: socket-tunnel.exemple.com
