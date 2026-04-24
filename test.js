@@ -28,7 +28,7 @@ try {
 
 const manager = localtunnel({
   host: 'http://localhost:3001',
-  authKey: 'abcd1234',
+  authKey: 'key_69eb324777067e2cbf52b04f__JhfX1gdsFCeDVHdfnnLb8LyWudvqXyyEhs5yDIBC1Q',
   tunnels: [
     { port: 3000, id: 'device-1', maxConn: 20 },
     { port: 9000, id: 'device-2', type: "tcp", tcpPort: "20123", maxConn: 20 },
